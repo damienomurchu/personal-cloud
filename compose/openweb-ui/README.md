@@ -1,556 +1,340 @@
-# Open WebUI — Local Mac mini Service
+# Open WebUI
 
-This directory contains the Docker Compose service definition for running **Open WebUI** locally on the Mac mini.
+## Purpose
 
-Open WebUI runs in a container.  
-Ollama runs directly on the Mac host.  
-External access is handled separately through **Cloudflare Tunnel + Cloudflare Access**.
+Open WebUI provides a private browser-based interface for interacting with locally hosted language models.
 
-The public URL is intended to be:
+It is used to:
+
+* access models running on the Mac mini
+* provide a consistent web interface across trusted devices
+* experiment with local AI-assisted workflows
+* keep selected prompts, conversations, and model usage under personal control
+
+Platform-wide exposure decisions are documented in [`../../adrs/0001-service-exposure-model.md`](../../adrs/0001-service-exposure-model.md).
+
+## Host
+
+Open WebUI runs on the Mac mini compute node using OrbStack.
+
+The Mac mini is the appropriate host because it also provides the local AI runtime and has sufficient memory and compute capacity for local models.
+
+## Exposure
+
+Open WebUI is browser-accessible at:
 
 ```text
 https://ai.damienmurphy.net
 ```
 
----
-
-## Architecture
+The external access path is:
 
 ```text
 Browser
-  ↓
-Cloudflare Access
-  ↓
-Cloudflare Tunnel
-  ↓
-Mac mini localhost:3000
-  ↓
-Open WebUI container
-  ↓
-host.docker.internal:11434
-  ↓
-Ollama running on Mac mini
+  -> Cloudflare Access
+  -> Cloudflare Tunnel
+  -> Open WebUI
 ```
 
-The service is intentionally bound to localhost only:
+Administrative access to the host remains private through Tailscale or the local network.
 
-```yaml
-ports:
-  - "127.0.0.1:${OPEN_WEBUI_PORT}:8080"
-```
+The service port should normally bind only to localhost when the Cloudflare Tunnel runs on the same host.
 
-This means Open WebUI is **not directly exposed to the LAN or internet**. Cloudflare Tunnel is expected to proxy to it locally.
+## Dependencies
 
----
+Open WebUI depends on:
 
-## Files
+* OrbStack
+* Docker Compose-compatible tooling
+* a local model runtime, currently Ollama or an equivalent API-compatible service
+* Cloudflare Tunnel
+* Cloudflare DNS
+* Cloudflare Access
+* persistent local storage
+* Tailscale for host administration
+
+The local model runtime must be reachable from the Open WebUI container.
+
+## Configuration
+
+Service configuration is defined in:
 
 ```text
-docker-compose.yml   # Defines the Open WebUI container
-.env                 # Local configuration values used by Compose
-README.md            # This file
+compose/openweb-ui/docker-compose.yml
 ```
 
-Expected wider layout:
+Host-specific configuration should be supplied through a local `.env` file.
+
+Typical configuration includes:
+
+```dotenv
+OPENWEBUI_PORT=3000
+OPENWEBUI_DATA=/path/to/personal-cloud-data/openweb-ui
+OLLAMA_BASE_URL=http://host.internal:11434
+```
+
+The actual variable names must match the current Compose definition.
+
+A safe `.env.example` should be committed alongside the Compose file.
+
+The real `.env` file must not be committed.
+
+## Persistent data
+
+Persistent Open WebUI state should live outside the repository.
+
+Recommended location:
 
 ```text
-~/code/
-  apps/
-    open-webui/
-      docker-compose.yml
-      .env
-      README.md
-
-  data/
-    open-webui/
-      # Persistent Open WebUI data
-
-  backups/
-    open-webui/
-      # Backup archives
+~/personal-cloud-data/openweb-ui/
+└── data/
 ```
 
----
+This data may include:
 
-## `.env`
+* user accounts
+* conversations
+* application settings
+* uploaded knowledge files
+* model connection configuration
+* application metadata
+
+Model files themselves are managed separately by the local model runtime and should not be stored inside the Open WebUI service directory.
+
+## Secrets
+
+Potential secrets include:
+
+* Open WebUI application secret keys
+* OAuth credentials, if configured
+* external model API keys
+* Cloudflare Tunnel credentials
+* administrative passwords
+
+Secrets must be stored outside Git and supplied through:
+
+* a local `.env` file
+* mounted secret files
+* the application's secure configuration mechanism
+
+Cloudflare Tunnel credentials are managed separately from the Compose configuration.
+
+## Deployment
+
+From the service directory:
+
+```bash
+cd compose/openweb-ui
+docker compose config
+docker compose pull
+docker compose up -d
+```
+
+Inspect the deployed service:
+
+```bash
+docker compose ps
+docker compose logs --tail=100
+```
+
+Confirm that the local model runtime is running before testing model access.
+
+## Validation
+
+Validate the following:
+
+1. The Compose configuration renders successfully.
+2. The container is running and healthy.
+3. The service responds locally.
+4. The service can reach the local model runtime.
+5. A model can be selected and queried successfully.
+6. `https://ai.damienmurphy.net` resolves correctly.
+7. Cloudflare Access blocks unauthorised users.
+8. An authorised user can sign in and use the service.
+9. The origin is not directly reachable from the public internet.
+
+Useful commands:
+
+```bash
+docker compose config
+docker compose ps
+docker compose logs --tail=100
+```
+
+Example local test:
+
+```bash
+curl -I http://127.0.0.1:3000
+```
+
+Adjust the port to match the deployed configuration.
+
+## Monitoring
+
+Open WebUI should be monitored from Uptime Kuma.
+
+Recommended checks:
+
+* HTTPS check for `https://ai.damienmurphy.net`
+* local or Tailscale-based origin check where practical
+* host reachability check for the Mac mini
+
+The public check validates:
+
+* DNS
+* Cloudflare Access
+* Cloudflare Tunnel
+* application availability
+
+The private check validates the application independently of Cloudflare.
+
+A simple HTTP status check may not prove that model inference is working. Periodic manual validation should include submitting a prompt to a local model.
+
+## Backup and restore
+
+Back up the persistent Open WebUI data directory if conversation history, users, settings, or uploaded knowledge files need to be retained.
+
+Back up:
+
+```text
+~/personal-cloud-data/openweb-ui/data/
+```
+
+The local model files do not necessarily need to be backed up if they can be downloaded again.
+
+Before restoring:
+
+1. Stop the service.
+2. Preserve or remove the existing data directory.
+3. Restore the backup to the configured persistent-data path.
+4. Confirm ownership and permissions.
+5. Start the service.
+6. Validate user access, settings, conversations, and model connectivity.
 
 Example:
 
-```env
-OPEN_WEBUI_PORT=3000
-OPEN_WEBUI_DATA_DIR=/Users/damien/code/data/open-webui
-
-WEBUI_AUTH=true
-ENABLE_SIGNUP=false
-WEBUI_URL=https://ai.damienmurphy.net
-
-OLLAMA_BASE_URL=http://host.docker.internal:11434
-```
-
-### Important values
-
-#### `OPEN_WEBUI_PORT`
-
-The local host port Open WebUI is exposed on.
-
-```env
-OPEN_WEBUI_PORT=3000
-```
-
-Local access:
-
-```text
-http://localhost:3000
-```
-
-Cloudflare Tunnel should point to:
-
-```text
-http://localhost:3000
-```
-
----
-
-#### `OPEN_WEBUI_DATA_DIR`
-
-Where Open WebUI stores its persistent data.
-
-```env
-OPEN_WEBUI_DATA_DIR=/Users/damien/code/data/open-webui
-```
-
-This is important. It contains things like users, conversations, app state, uploaded files, and configuration.
-
-Do **not** casually delete this directory unless you are deliberately resetting Open WebUI.
-
----
-
-#### `WEBUI_AUTH`
-
-```env
-WEBUI_AUTH=true
-```
-
-Keeps Open WebUI login enabled.
-
-Even though Cloudflare Access sits in front of the app, Open WebUI still has its own login. This gives two layers:
-
-```text
-Cloudflare Access login
-→ Open WebUI login
-```
-
-This is intentional.
-
----
-
-#### `ENABLE_SIGNUP`
-
-```env
-ENABLE_SIGNUP=false
-```
-
-Prevents arbitrary users from signing themselves up.
-
-New users should be created/managed from the Open WebUI admin panel.
-
----
-
-#### `WEBUI_URL`
-
-```env
-WEBUI_URL=https://ai.damienmurphy.net
-```
-
-The external URL for the service.
-
-Used by Open WebUI when it needs to know its public-facing address.
-
----
-
-#### `OLLAMA_BASE_URL`
-
-```env
-OLLAMA_BASE_URL=http://host.docker.internal:11434
-```
-
-Open WebUI runs in a container, but Ollama runs directly on the Mac mini host.
-
-From inside the container, `localhost` would refer to the container itself, not the Mac.
-
-So this uses:
-
-```text
-host.docker.internal
-```
-
-to reach Ollama on the Mac host.
-
----
-
-## `docker-compose.yml`
-
-Expected service shape:
-
-```yaml
-services:
-  open-webui:
-    image: ghcr.io/open-webui/open-webui:main
-    container_name: open-webui
-    restart: unless-stopped
-
-    ports:
-      - "127.0.0.1:${OPEN_WEBUI_PORT}:8080"
-
-    environment:
-      WEBUI_AUTH: "${WEBUI_AUTH}"
-      ENABLE_SIGNUP: "${ENABLE_SIGNUP}"
-      WEBUI_URL: "${WEBUI_URL}"
-      OLLAMA_BASE_URL: "${OLLAMA_BASE_URL}"
-
-    volumes:
-      - "${OPEN_WEBUI_DATA_DIR}:/app/backend/data"
-```
-
-### Key points
-
-The container listens internally on:
-
-```text
-8080
-```
-
-The Mac exposes it locally on:
-
-```text
-127.0.0.1:3000
-```
-
-The persistent Open WebUI data lives on the host at:
-
-```text
-~/code/data/open-webui
-```
-
-and is mounted into the container at:
-
-```text
-/app/backend/data
-```
-
-The container can be destroyed/recreated safely as long as the data directory is preserved.
-
-Containers are disposable. The data directory is not.
-
----
-
-## Common commands
-
-Run from this directory:
-
-```bash
-cd ~/code/apps/open-webui
-```
-
-### Start
-
-```bash
-docker compose up -d
-```
-
-### Stop
-
 ```bash
 docker compose down
+# Restore data
+docker compose up -d
+docker compose logs --tail=100
 ```
 
-### Restart
+Restore procedures should be tested after significant application or database-version changes.
+
+## Updating
+
+Before updating:
+
+1. Review the Open WebUI release notes.
+2. Check for database migrations or breaking configuration changes.
+3. Confirm a recent backup exists.
+4. Record the current container image version.
+
+Update the image version in `docker-compose.yml`, then run:
 
 ```bash
-docker compose restart
-```
-
-### View logs
-
-```bash
-docker logs -f open-webui
-```
-
-### Check status
-
-```bash
-docker ps --filter "name=open-webui"
-```
-
-### Update Open WebUI
-
-```bash
+docker compose config
 docker compose pull
 docker compose up -d
-docker image prune -f
+docker compose ps
+docker compose logs --tail=100
 ```
 
-Before updating, make a backup.
+Validate:
 
----
+* login
+* conversation history
+* model discovery
+* prompt execution
+* Cloudflare access
 
-## Ollama checks
-
-Ollama should be running on the Mac host.
-
-Check from the Mac:
-
-```bash
-curl http://localhost:11434/api/tags
-```
-
-Check from inside the container:
-
-```bash
-docker exec -it open-webui curl http://host.docker.internal:11434/api/tags
-```
-
-If the second command fails, Open WebUI cannot reach Ollama.
-
----
-
-## Cloudflare Tunnel
-
-Cloudflare Tunnel should route:
-
-```text
-ai.damienmurphy.net
-→ http://localhost:3000
-```
-
-This service should **not** be exposed directly with public ports or router port forwarding.
-
-Correct:
-
-```text
-Cloudflare Tunnel → localhost:3000
-```
-
-Wrong:
-
-```text
-Public internet → Mac mini port 3000
-```
-
----
-
-## Cloudflare Access
-
-Cloudflare Access should protect:
-
-```text
-https://ai.damienmurphy.net
-```
-
-Expected login flow:
-
-```text
-Cloudflare Access
-→ Open WebUI login
-→ Chat UI
-```
-
-Access policy should normally allow only explicit trusted email addresses.
-
-Do not use:
-
-```text
-Bypass everyone
-```
-
-unless deliberately testing.
-
----
-
-## User and model access
-
-Open WebUI users need two things:
-
-1. Their role must be `User`, not `Pending`.
-2. The models must be visible/shared to them.
-
-The default permission toggle:
-
-```text
-Models Access
-```
-
-only allows users to use the models feature. It does **not** automatically grant access to every backend Ollama model.
-
-To share models:
-
-```text
-Admin / Workspace
-→ Models
-→ Select model
-→ Set visibility/access
-```
-
-For simple trusted usage, make selected small models public/shared.
-
-Suggested normal-user models:
-
-```text
-qwen2.5-coder:7b
-mistral-small
-```
-
-Keep large/experimental models private unless deliberately sharing them.
-
----
-
-## Backups
-
-The important directory is:
-
-```text
-~/code/data/open-webui
-```
-
-Back it up before upgrades or major configuration changes.
-
-Example backup:
-
-```bash
-mkdir -p ~/code/backups/open-webui
-
-tar -czf ~/code/backups/open-webui/open-webui-$(date +%Y%m%d-%H%M%S).tar.gz \
-  -C ~/code/data/open-webui .
-```
-
-Restore pattern:
-
-```bash
-cd ~/code/apps/open-webui
-docker compose down
-
-mv ~/code/data/open-webui ~/code/data/open-webui.broken.$(date +%Y%m%d-%H%M%S)
-mkdir -p ~/code/data/open-webui
-
-tar -xzf ~/code/backups/open-webui/<backup-file>.tar.gz \
-  -C ~/code/data/open-webui
-
-docker compose up -d
-```
-
----
+Prefer an explicit version tag over `latest` where practical.
 
 ## Troubleshooting
 
-### Open WebUI does not load locally
+### Service does not start
+
+Inspect logs:
+
+```bash
+docker compose logs --tail=200
+```
 
 Check:
 
-```bash
-docker ps --filter "name=open-webui"
-docker logs -f open-webui
-curl -I http://localhost:3000
-```
+* environment variables
+* mounted data paths
+* filesystem permissions
+* port conflicts
+* image compatibility
 
----
-
-### Open WebUI loads locally but not through Cloudflare
-
-Check the tunnel route:
-
-```text
-ai.damienmurphy.net
-→ http://localhost:3000
-```
-
-Check that the tunnel connector is healthy in Cloudflare.
-
----
-
-### Open WebUI loads but shows no models
-
-Check Ollama:
-
-```bash
-curl http://localhost:11434/api/tags
-```
-
-Check from container:
-
-```bash
-docker exec -it open-webui curl http://host.docker.internal:11434/api/tags
-```
-
-Then check Open WebUI admin/settings connections.
-
----
-
-### Other users see no models
+### Models are unavailable
 
 Check:
 
-```text
-Admin Panel → Users
+* the local model runtime is running
+* the configured model API URL
+* host-to-container networking
+* OrbStack host aliases
+* model availability in the runtime
+* local firewall rules
+
+Test the model API directly from the host before debugging Open WebUI.
+
+### Local service works but the public hostname fails
+
+Check:
+
+* Cloudflare Tunnel process status
+* tunnel route configuration
+* DNS records
+* Cloudflare Access policy
+* origin port and protocol
+* whether the service is bound to the expected address
+
+### Cloudflare login succeeds but Open WebUI rejects access
+
+Cloudflare Access and Open WebUI authentication are separate layers.
+
+Check:
+
+* Open WebUI user account state
+* application authentication settings
+* session cookies
+* application logs
+
+### Application data appears missing
+
+Check:
+
+* the configured volume path
+* whether a new empty directory was mounted
+* filesystem permissions
+* whether the Compose project is using the intended `.env`
+
+Do not initialise a fresh application database until the original data location has been identified.
+
+## Removal
+
+Before removal:
+
+1. Decide whether conversations, settings, and uploaded files must be retained.
+2. Back up or export required data.
+3. Stop the service.
+4. Remove the container.
+5. Remove the Cloudflare Tunnel route.
+6. Remove the Cloudflare Access application or policy.
+7. Remove the DNS record.
+8. Remove Uptime Kuma monitors.
+9. Remove unused secrets.
+10. Retain or securely delete persistent data.
+
+Stop and remove the service:
+
+```bash
+docker compose down
 ```
 
-User role should be:
+Do not remove persistent data until its retention decision has been made.
 
-```text
-User
-```
-
-not:
-
-```text
-Pending
-```
-
-Then check:
-
-```text
-Workspace → Models
-```
-
-and ensure the relevant models are public/shared with that user or group.
-
----
-
-## Things not to casually change
-
-Do not change this unless you know why:
-
-```yaml
-127.0.0.1:${OPEN_WEBUI_PORT}:8080
-```
-
-Binding to `127.0.0.1` is intentional.
-
-Do not remove this volume:
-
-```yaml
-${OPEN_WEBUI_DATA_DIR}:/app/backend/data
-```
-
-That is what keeps the app data alive across container recreations.
-
-Do not expose the service directly to the internet.
-
-Do not rely on anonymous Docker volumes for anything important.
-
----
-
-## Mental model
-
-This is a local-first AI service.
-
-Cloudflare provides the safe front door.
-
-Open WebUI provides the app.
-
-Ollama provides the models.
-
-Docker runs the UI.
-
-The data directory is the crown jewels.
-
-Everything else is plumbing.
