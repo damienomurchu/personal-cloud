@@ -2,9 +2,9 @@
 
 Infrastructure, architecture, and operational documentation for my personal cloud.
 
-This repository contains the configuration and documentation used to run a small collection of self-hosted services across personally owned infrastructure.
+This repository contains the configuration and documentation used to operate a small collection of self-hosted services across personally owned infrastructure.
 
-The platform is intended to be:
+The platform is intended to remain:
 
 * understandable
 * secure by default
@@ -42,6 +42,8 @@ See [architecture/README.md](architecture/README.md) for the full architecture, 
 
 ```text
 .
+├── README.md
+├── HANDBOOK.md
 ├── adrs/
 │   └── 0001-service-exposure-model.md
 ├── architecture/
@@ -50,10 +52,15 @@ See [architecture/README.md](architecture/README.md) for the full architecture, 
 │   ├── calibre-web/
 │   ├── openweb-ui/
 │   └── uptime-kuma/
-├── docs/
-│   └── service-onboarding.md
-└── README.md
+└── docs/
+    └── service-onboarding.md
 ```
+
+### `HANDBOOK.md`
+
+Defines the platform-wide engineering principles, standards, service lifecycle, documentation model, and operational expectations.
+
+See the [Platform Handbook](HANDBOOK.md).
 
 ### `adrs/`
 
@@ -73,7 +80,7 @@ Current-state and target-state platform architecture.
 
 Docker Compose definitions and service-specific operational documentation.
 
-Each service directory contains:
+Each service directory should contain:
 
 ```text
 compose/<service>/
@@ -81,65 +88,15 @@ compose/<service>/
 └── README.md
 ```
 
-Host-specific environment files, secrets, and persistent runtime data should not be committed.
+Host-specific environment files, secrets, and persistent runtime data must not be committed.
 
 ### `docs/`
 
 Platform-wide operational documentation and runbooks.
 
+Current documentation:
+
 * [Service Onboarding](docs/service-onboarding.md)
-
-## Design principles
-
-### Keep the platform understandable
-
-Prefer explicit, boring, and recoverable systems over unnecessary complexity.
-
-### Use the narrowest practical exposure
-
-Services should be:
-
-1. localhost-only where possible
-2. private through Tailscale or the local network where remote access is required
-3. exposed through Cloudflare Access and Tunnel only where browser accessibility provides real value
-
-Direct inbound router port forwarding is not part of the normal architecture.
-
-### Separate configuration from state
-
-This repository contains the instructions required to run the platform.
-
-It should not contain:
-
-* application databases
-* logs
-* uploaded files
-* OAuth credentials
-* API tokens
-* private keys
-* generated application state
-
-Persistent data should live outside the repository and be mounted explicitly by Compose.
-
-### Treat documentation as part of the system
-
-A service is not complete when its container starts.
-
-It should also have:
-
-* documented host placement
-* known dependencies
-* an intentional exposure model
-* monitoring
-* backup requirements
-* update instructions
-* recovery procedures
-
-### Add complexity only when it removes a larger constraint
-
-Kubernetes, centralised secrets management, distributed storage, and deeper observability may become useful later.
-
-They are not goals by themselves.
 
 ## Deploying a service
 
@@ -173,9 +130,10 @@ See the service README for:
 
 ## Adding a service
 
-New services should follow the onboarding workflow documented in:
+New services should follow the workflow documented in:
 
-[docs/service-onboarding.md](docs/service-onboarding.md)
+* [Service Onboarding](docs/service-onboarding.md)
+* [Platform Handbook](HANDBOOK.md#service-lifecycle)
 
 At minimum, a service should have:
 
@@ -189,52 +147,9 @@ At minimum, a service should have:
 * a validation method
 * documented monitoring and backup requirements
 
-## Security model
-
-The platform assumes that:
-
-* the local network is not inherently trusted
-* internet-facing services will be scanned
-* containers may contain vulnerabilities
-* credentials will require rotation
-* machines and disks may fail
-* configuration mistakes are likely
-
-The main controls are:
-
-* Cloudflare Access for browser-facing identity
-* Cloudflare Tunnel for outbound-only ingress
-* Tailscale for private administration
-* narrow host-port bindings
-* application-level authentication where useful
-* explicit persistent storage
-* version-controlled configuration
-* documented recovery paths
-
-See [ADR 0001](adrs/0001-service-exposure-model.md) for the full exposure decision.
-
-## Persistent data
-
-A target host layout is:
-
-```text
-~/personal-cloud-data/
-├── calibre-web/
-│   ├── config/
-│   └── library/
-├── openweb-ui/
-│   └── data/
-└── uptime-kuma/
-    └── data/
-```
-
-Compose definitions should reference these paths through environment variables or explicit mounts.
-
-The repository itself is not a backup of the platform.
-
 ## Known gaps
 
-The current platform still has several accepted limitations:
+The platform currently has several accepted limitations:
 
 * backups are not yet fully automated or restore-tested
 * secret management is decentralised
@@ -265,38 +180,7 @@ Likely future work includes:
 * Memos
 * centralised secret management where justified
 
-## Repository hygiene
-
-Before committing:
-
-```bash
-git status
-git diff --cached
-```
-
-Verify that no secrets or runtime data are staged.
-
-Files such as the following should normally be ignored:
-
-```gitignore
-.env
-.env.*
-!.env.example
-
-*.db
-*.sqlite
-*.sqlite3
-*.log
-
-client_secrets.json
-*.pem
-*.key
-
-data/
-backups/
-```
-
-Service-specific ignore rules should preserve useful static configuration while excluding generated state.
+Significant architectural changes should be introduced through ADRs rather than undocumented implementation drift.
 
 ## Why this repository exists
 
