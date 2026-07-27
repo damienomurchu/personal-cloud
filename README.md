@@ -44,6 +44,12 @@ See [architecture/README.md](architecture/README.md) for the full architecture, 
 .
 ├── README.md
 ├── HANDBOOK.md
+├── AGENTS.md
+├── .agents/
+│   ├── architecture.md
+│   ├── known-gaps.md
+│   ├── services.md
+│   └── workflows.md
 ├── adrs/
 │   └── 0001-service-exposure-model.md
 ├── architecture/
@@ -55,6 +61,18 @@ See [architecture/README.md](architecture/README.md) for the full architecture, 
 └── docs/
     └── service-onboarding.md
 ```
+
+### `AGENTS.md` and `.agents/`
+
+Provide repository-specific context and working guidance for AI-assisted changes.
+
+`AGENTS.md` defines the mandatory repository instructions for AI tools. The
+`.agents/` directory summarises architecture, services, workflows, and known
+gaps so relevant context can be loaded efficiently.
+
+These files do not replace the authoritative platform documentation. The
+handbook, architecture documents, ADRs, runbooks, and service READMEs remain the
+sources of truth.
 
 ### `HANDBOOK.md`
 
@@ -85,6 +103,7 @@ Each service directory should contain:
 ```text
 compose/<service>/
 ├── docker-compose.yml
+├── .env.example
 └── README.md
 ```
 
@@ -156,6 +175,7 @@ The platform currently has several accepted limitations:
 * host provisioning is not fully reproducible
 * deployments are primarily manual
 * monitoring focuses mainly on availability
+* some runtime state still needs to be moved outside the repository
 * storage architecture is still evolving
 * the Mac mini remains a significant application failure domain
 
@@ -200,4 +220,3 @@ It is the durable record of:
 The aim is not to host the most services.
 
 It is to operate a personal platform that remains understandable as it grows.
-
