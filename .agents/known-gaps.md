@@ -38,10 +38,10 @@ Treat them as potentially sensitive. Flag their tracked status before work that
 touches environment configuration. Do not delete or untrack them unless that
 change is explicitly in scope.
 
-## Missing example configuration and ignore rules
+## Incomplete example configuration and ignore rules
 
-- No service currently has a tracked `.env.example`, although the service
-  documentation says one should be committed.
+- Forgejo has a tracked `.env.example`, but the older services do not, despite
+  their documentation saying one should be committed.
 - No root `.gitignore` is tracked, despite the handbook defining expected
   exclusions.
 
@@ -108,4 +108,3 @@ unexpected upgrades would create unacceptable risk.
 
 For services without a Compose health check, distinguish `running` from
 `healthy` and use application-aware validation.
-

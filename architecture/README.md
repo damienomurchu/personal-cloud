@@ -117,6 +117,13 @@ The intended rule is:
 
 > Place services according to failure boundaries and resource needs, not merely according to available capacity.
 
+### Prepared placement
+
+A Forgejo service definition is prepared for the Mac mini but is not a current
+workload until deployment and validation are complete. Its intended placement
+is based on its role as a stateful user-facing application rather than a
+management-plane service.
+
 ## Connectivity
 
 The platform uses three main connectivity paths.
@@ -341,6 +348,8 @@ A target host layout is:
 ├── calibre-web/
 │   ├── config/
 │   └── library/
+├── forgejo/
+│   └── data/
 ├── openweb-ui/
 │   └── data/
 └── uptime-kuma/
@@ -618,4 +627,3 @@ The platform should continue to follow these principles:
 8. Document decisions and recovery paths.
 9. Add complexity only when it removes a larger constraint.
 10. Build the smallest platform that provides the required capability.
-

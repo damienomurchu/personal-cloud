@@ -1,0 +1,37 @@
+services:
+  forgejo:
+    image: codeberg.org/forgejo/forgejo:15.0.5
+    container_name: forgejo
+    restart: unless-stopped
+
+    environment:
+      USER_UID: "${PUID}"
+      USER_GID: "${PGID}"
+
+      FORGEJO__database__DB_TYPE: sqlite3
+
+      FORGEJO__server__DOMAIN: "${FORGEJO_DOMAIN}"
+      FORGEJO__server__ROOT_URL: "${FORGEJO_ROOT_URL}"
+      FORGEJO__server__SSH_DOMAIN: "${FORGEJO_SSH_DOMAIN}"
+      FORGEJO__server__SSH_PORT: "${FORGEJO_SSH_PORT}"
+
+      FORGEJO__service__DISABLE_REGISTRATION: "${DISABLE_REGISTRATION}"
+      FORGEJO__service__REQUIRE_SIGNIN_VIEW: "${REQUIRE_SIGNIN_VIEW}"
+
+    volumes:
+      - "${FORGEJO_DATA_DIR}:/data"
+
+    ports:
+      - "127.0.0.1:${FORGEJO_HTTP_PORT}:3000"
+      - "${FORGEJO_SSH_BIND_ADDRESS}:${FORGEJO_SSH_PORT}:22"
+
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "curl -fsS http://localhost:3000/api/healthz >/dev/null || exit 1",
+        ]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s

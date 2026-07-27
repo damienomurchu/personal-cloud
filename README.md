@@ -25,6 +25,10 @@ The goal is not simply to run containers. It is to build a small, durable person
 
 Administrative access to platform hosts is provided through Tailscale or the local network.
 
+The repository also contains a prepared [Forgejo](compose/forgejo/) service
+definition for private Git hosting on the Mac mini. It is not part of the
+current service inventory until deployment and validation are complete.
+
 ## Architecture
 
 The platform currently consists of two primary nodes:
@@ -56,6 +60,7 @@ See [architecture/README.md](architecture/README.md) for the full architecture, 
 │   └── README.md
 ├── compose/
 │   ├── calibre-web/
+│   ├── forgejo/
 │   ├── openweb-ui/
 │   └── uptime-kuma/
 └── docs/

@@ -5,13 +5,16 @@ Compose definition remain authoritative for service-specific work.
 
 ## Inventory
 
-| Service | Host | Browser hostname | Origin | Durable state |
-| --- | --- | --- | --- | --- |
-| Open WebUI | Mac mini | `ai.damienmurphy.net` | Configurable localhost host port to container port `8080` | Open WebUI data |
-| Calibre-Web | Mac mini | `books.damienmurphy.net` | Configurable localhost host port to container port `8083` | Application configuration and Calibre library |
-| Uptime Kuma | ThinkPad X1 | `status.damienmurphy.net` | `127.0.0.1:3001` | Uptime Kuma application data |
+| Service | Status | Host | Browser hostname | Origin | Durable state |
+| --- | --- | --- | --- | --- | --- |
+| Open WebUI | Current | Mac mini | `ai.damienmurphy.net` | Configurable localhost host port to container port `8080` | Open WebUI data |
+| Calibre-Web | Current | Mac mini | `books.damienmurphy.net` | Configurable localhost host port to container port `8083` | Application configuration and Calibre library |
+| Forgejo | Prepared, not deployed | Mac mini | `git.damienmurphy.net` | Localhost HTTP port `3002`; private Tailscale SSH port `2222` | Repositories, SQLite database, configuration, keys, and application data |
+| Uptime Kuma | Current | ThinkPad X1 | `status.damienmurphy.net` | `127.0.0.1:3001` | Uptime Kuma application data |
 
-All three browser hostnames use Cloudflare Tunnel and Cloudflare Access.
+The three current browser hostnames use Cloudflare Tunnel and Cloudflare Access.
+Forgejo is configured to follow the same browser exposure model after it is
+deployed.
 Administrative host access remains private through Tailscale or the trusted
 local network.
 
@@ -74,6 +77,43 @@ Source files:
 - `compose/calibre-web/README.md`
 - `compose/calibre-web/docker-compose.yml`
 
+## Forgejo
+
+Purpose: private Git repository hosting and code collaboration.
+
+Forgejo is prepared for the Mac mini with SQLite and a single external `/data`
+mount. Do not describe it as running until deployment and validation are
+complete.
+Durable state includes repositories, the database, application configuration,
+generated secrets, SSH keys, attachments, releases, and other enabled
+application data.
+
+Access is intentionally split:
+
+- browser access uses `git.damienmurphy.net` through Cloudflare Access and a
+  localhost-bound HTTP origin
+- Git-over-SSH uses the Mac mini's private Tailscale address and advertised
+  MagicDNS hostname
+- Git-over-HTTPS, automated API clients, inbound webhooks, Actions runners, and
+  package clients require separate access and security decisions
+
+Validation must include:
+
+- container and application health
+- authorized and unauthorized browser access
+- private repository creation
+- authenticated clone, push, and fetch over Tailscale SSH
+- persistence across restart
+- a restorable, encrypted, off-host backup
+
+Do not initialize new state if repositories appear missing until the `/data`
+mount has been verified.
+
+Source files:
+
+- `compose/forgejo/README.md`
+- `compose/forgejo/docker-compose.yml`
+
 ## Uptime Kuma
 
 Purpose: independent availability monitoring and operational status. It is part
@@ -109,4 +149,3 @@ Source files:
 
 - `compose/uptime-kuma/README.md`
 - `compose/uptime-kuma/docker-compose.yml`
-
