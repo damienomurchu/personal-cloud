@@ -10,7 +10,7 @@ services:
       - DOCKER_MODS=linuxserver/mods:universal-calibre
 
     volumes:
-      - ./config:/config
+      - /Users/me/personal-cloud-data/calibre-web/config:/config
       - /Users/me/.calibre:/books
 
     ports:
