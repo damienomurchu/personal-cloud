@@ -8,4 +8,4 @@ services:
       - "127.0.0.1:3001:3001"
 
     volumes:
-      - /Users/me/code/data/uptime-kuma:/app/data
+      - /Users/me/personal-cloud-data/uptime-kuma:/app/data
