@@ -1,0 +1,33 @@
+services:
+  memos:
+    image: neosmemo/memos:stable
+    container_name: memos
+    restart: unless-stopped
+    init: true
+
+    ports:
+      # Bind only to the host. Expose externally through Cloudflare Tunnel.
+      - "127.0.0.1:5230:5230"
+
+    volumes:
+      - /Users/me/personal-cloud-data/memos:/var/opt/memos
+
+    environment:
+      MEMOS_PORT: "5230"
+      MEMOS_DRIVER: sqlite
+      MEMOS_LOG_LEVEL: info
+
+      # Deliberately omitted:
+      # MEMOS_INSTANCE_URL
+      #
+      # Leaving it empty keeps Memos in private mode.
+      # Setting it enables anonymous public-facing surfaces.
+
+    security_opt:
+      - no-new-privileges:true
+
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
