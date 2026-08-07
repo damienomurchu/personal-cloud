@@ -1,0 +1,29 @@
+services:
+  code-server:
+    image: codercom/code-server:4.130.0
+    container_name: code-server
+    restart: unless-stopped
+
+    ports:
+      - "127.0.0.1:9000:8080"
+
+    user: "${UID}:${GID}"
+
+    environment:
+      DOCKER_USER: "${USER}"
+
+    volumes:
+      # Persistent code-server state
+      - /Users/me/personal-cloud-data/code-server/local:/home/coder/.local
+      - /Users/me/personal-cloud-data/code-server/config:/home/coder/.config
+
+      # Existing source repositories
+      - /Users/me/src:/home/coder/src
+
+      # Dedicated Git/SSH identity for code-server
+      - /Users/me/personal-cloud-data/code-server/ssh:/home/coder/.ssh
+
+      # Reuse Git identity/config, but not host credentials
+      - /Users/me/.gitconfig:/home/coder/.gitconfig:ro
+
+    working_dir: /home/coder/src
