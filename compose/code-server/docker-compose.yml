@@ -1,6 +1,6 @@
 services:
   code-server:
-    image: codercom/code-server:4.130.0
+    image: ghcr.io/damienomurchu/code-server:latest
     container_name: code-server
     restart: unless-stopped
 
