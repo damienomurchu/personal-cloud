@@ -1,0 +1,42 @@
+name: docmost
+
+services:
+  docmost:
+    image: docmost/docmost:0.95.0
+    restart: unless-stopped
+    depends_on:
+      - db
+      - redis
+    environment:
+      APP_URL: ${DOCMOST_APP_URL:-http://localhost:3000}
+      APP_SECRET: ${DOCMOST_APP_SECRET}
+      DATABASE_URL: postgresql://docmost:${DOCMOST_DB_PASSWORD}@db:5432/docmost
+      REDIS_URL: redis://redis:6379
+      STORAGE_DRIVER: local
+      DISABLE_TELEMETRY: "true"
+    ports:
+      - "127.0.0.1:3002:3000"
+    volumes:
+      - ${HOME}/personal-cloud-data/docmost/storage:/app/data/storage
+
+  db:
+    image: postgres:18
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: docmost
+      POSTGRES_USER: docmost
+      POSTGRES_PASSWORD: ${DOCMOST_DB_PASSWORD}
+    volumes:
+      - ${HOME}/personal-cloud-data/docmost/postgres:/var/lib/postgresql
+
+  redis:
+    image: redis:8
+    restart: unless-stopped
+    command:
+      - redis-server
+      - --appendonly
+      - "yes"
+      - --maxmemory-policy
+      - noeviction
+    volumes:
+      - ${HOME}/personal-cloud-data/docmost/redis:/data
