@@ -1,0 +1,26 @@
+services:
+  freshrss:
+    image: freshrss/freshrss:1.29.1
+
+    ports:
+      - "127.0.0.1:14030:80"
+
+    environment:
+      TZ: Europe/Dublin
+      CRON_MIN: "7,37"
+
+    volumes:
+      - ${HOME}/personal-cloud-data/freshrss/data:/var/www/FreshRSS/data
+      - ${HOME}/personal-cloud-data/freshrss/extensions:/var/www/FreshRSS/extensions
+
+    init: true
+    restart: unless-stopped
+
+    healthcheck:
+      test:
+        - CMD
+        - cli/health.php
+      start_period: 60s
+      interval: 75s
+      timeout: 10s
+      retries: 3
