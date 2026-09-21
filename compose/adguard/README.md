@@ -2,7 +2,7 @@
 
 AdGuard Home provides DNS filtering for devices on the Tailscale network.
 
-This instance runs on `mgt-1` via Docker Compose.
+This deployment runs via Docker Compose and uses host-specific `.env` files so the same Compose definition can be reused across multiple devices.
 
 ## Scope
 
@@ -13,7 +13,6 @@ Tailnet clients
       │
       ▼
 AdGuard Home
-    mgt-1
       │
       ▼
 Encrypted upstream DNS
@@ -21,12 +20,80 @@ Encrypted upstream DNS
 
 The home LAN does not depend on this service.
 
-## Paths
-
-Persistent data:
+## Repository Layout
 
 ```text
-~/personal-cloud-data/adguard/
+adguard/
+├── docker-compose.yml
+├── .env.example
+├── .env.mgt-1
+├── .env.mac-mini
+├── .gitignore
+└── README.md
+```
+
+Commit:
+
+* `docker-compose.yml`
+* `.env.example`
+* `.gitignore`
+* `README.md`
+
+Do not commit host-specific `.env` files.
+
+## Environment Files
+
+The Compose file expects host-specific values from an env file.
+
+Example:
+
+```dotenv
+TAILSCALE_IP=100.x.x.x
+DATA_DIR=/home/damien/personal-cloud-data/adguard
+```
+
+For another host:
+
+```dotenv
+TAILSCALE_IP=100.y.y.y
+DATA_DIR=/Users/damien/personal-cloud-data/adguard
+```
+
+Use `.env.example` as the template:
+
+```dotenv
+TAILSCALE_IP=
+DATA_DIR=
+```
+
+Create a host-specific file:
+
+```bash
+cp .env.example .env.mgt-1
+```
+
+Then populate the values for that device.
+
+## Git Ignore
+
+Use:
+
+```gitignore
+.env
+.env.*
+!.env.example
+```
+
+This keeps host-specific configuration out of source control while retaining the template.
+
+## Paths
+
+Persistent data is stored outside the container.
+
+Example on `mgt-1`:
+
+```text
+/home/damien/personal-cloud-data/adguard/
 ├── conf/
 └── work/
 ```
@@ -38,6 +105,8 @@ Container paths:
 /opt/adguardhome/work
 ```
 
+The host path is provided through `DATA_DIR`.
+
 ## Network
 
 Steady-state ports:
@@ -48,11 +117,11 @@ Steady-state ports:
 8080/tcp   Admin UI
 ```
 
-All ports should be bound to the Tailscale IP of `mgt-1`.
+All ports are bound to the host's Tailscale IP.
 
 Port `3000/tcp` is required only for initial setup.
 
-Get the Tailscale IP:
+Get the local Tailscale IP:
 
 ```bash
 tailscale ip -4
@@ -66,31 +135,67 @@ sudo ss -lntup | grep ':53 '
 
 Resolve any port `53` conflict before starting AdGuard Home.
 
-## Setup
+## Compose Variables
 
-Create persistent directories:
+The Compose file should reference environment variables explicitly:
 
-```bash
-mkdir -p ~/personal-cloud-data/adguard/{conf,work}
+```yaml
+ports:
+  - "${TAILSCALE_IP:?TAILSCALE_IP is required}:53:53/tcp"
+  - "${TAILSCALE_IP:?TAILSCALE_IP is required}:53:53/udp"
+  - "${TAILSCALE_IP:?TAILSCALE_IP is required}:3000:3000/tcp"
+  - "${TAILSCALE_IP:?TAILSCALE_IP is required}:8080:80/tcp"
+
+volumes:
+  - "${DATA_DIR:?DATA_DIR is required}/work:/opt/adguardhome/work"
+  - "${DATA_DIR:?DATA_DIR is required}/conf:/opt/adguardhome/conf"
 ```
 
-Start the service:
+Required-value syntax causes Compose to fail immediately if a variable is missing.
+
+## Setup
+
+Create the persistent directories for the target host:
 
 ```bash
-docker compose up -d
+mkdir -p "${DATA_DIR}/"{conf,work}
+```
+
+If running manually from a shell, either export `DATA_DIR` first or create the directories using the path from the selected env file.
+
+For example:
+
+```bash
+mkdir -p /home/damien/personal-cloud-data/adguard/{conf,work}
+```
+
+## Start
+
+Run Compose with the env file for the target host:
+
+```bash
+docker compose --env-file .env.mgt-1 up -d
+```
+
+For another host:
+
+```bash
+docker compose --env-file .env.mac-mini up -d
 ```
 
 Check status:
 
 ```bash
-docker compose ps
+docker compose --env-file .env.mgt-1 ps
 ```
 
 View logs:
 
 ```bash
-docker compose logs -f
+docker compose --env-file .env.mgt-1 logs -f
 ```
+
+Always use the same env file for follow-up Compose operations on that host.
 
 ## Initial Configuration
 
@@ -118,13 +223,13 @@ http://<TAILSCALE_IP>:8080
 Remove the temporary setup port from `docker-compose.yml`:
 
 ```yaml
-- "<TAILSCALE_IP>:3000:3000/tcp"
+- "${TAILSCALE_IP:?TAILSCALE_IP is required}:3000:3000/tcp"
 ```
 
 Then reconcile:
 
 ```bash
-docker compose up -d
+docker compose --env-file .env.mgt-1 up -d
 ```
 
 ## Expected Port Mapping
@@ -133,12 +238,12 @@ Steady state:
 
 ```yaml
 ports:
-  - "<TAILSCALE_IP>:53:53/tcp"
-  - "<TAILSCALE_IP>:53:53/udp"
-  - "<TAILSCALE_IP>:8080:80/tcp"
+  - "${TAILSCALE_IP:?TAILSCALE_IP is required}:53:53/tcp"
+  - "${TAILSCALE_IP:?TAILSCALE_IP is required}:53:53/udp"
+  - "${TAILSCALE_IP:?TAILSCALE_IP is required}:8080:80/tcp"
 ```
 
-Do not bind DNS or the admin UI to all host interfaces unless that is intentional.
+Do not bind DNS or the admin UI to all host interfaces unless intentional.
 
 ## Upstream DNS
 
@@ -178,46 +283,69 @@ Verify:
 * blocked domains are blocked
 * allowed domains resolve normally
 
-Only then configure Tailscale to use `mgt-1` as its DNS resolver.
+Only then configure Tailscale to use the resolver.
 
 ## Tailscale
 
-Configure the `mgt-1` Tailscale IP as the tailnet DNS server.
+Configure the host's Tailscale IP as a tailnet DNS server.
 
 Do not configure a public resolver as a secondary DNS server on clients. Clients may use it directly and bypass AdGuard.
 
-Redundancy should come from a second controlled resolver, not a public fallback.
+Redundancy should come from a second controlled resolver.
+
+## Multi-Host Deployment
+
+The same Compose file is reused across hosts.
+
+Example:
+
+```text
+mgt-1
+  └── .env.mgt-1
+
+Mac mini
+  └── .env.mac-mini
+```
+
+Each host provides its own:
+
+* `TAILSCALE_IP`
+* `DATA_DIR`
+
+The service definition remains unchanged.
+
+This keeps host-specific configuration out of the Compose file and makes additional deployments predictable.
 
 ## Operations
 
 Check service state:
 
 ```bash
-docker compose ps
+docker compose --env-file .env.mgt-1 ps
 ```
 
 View recent logs:
 
 ```bash
-docker compose logs --tail=100
+docker compose --env-file .env.mgt-1 logs --tail=100
 ```
 
 Restart:
 
 ```bash
-docker compose restart
+docker compose --env-file .env.mgt-1 restart
 ```
 
 Stop:
 
 ```bash
-docker compose down
+docker compose --env-file .env.mgt-1 down
 ```
 
 Start:
 
 ```bash
-docker compose up -d
+docker compose --env-file .env.mgt-1 up -d
 ```
 
 ## Update
@@ -225,34 +353,38 @@ docker compose up -d
 Pull the configured image version:
 
 ```bash
-docker compose pull
+docker compose --env-file .env.mgt-1 pull
 ```
 
 Recreate:
 
 ```bash
-docker compose up -d
+docker compose --env-file .env.mgt-1 up -d
 ```
 
 Validate:
 
 ```bash
-docker compose ps
-docker compose logs --tail=100
+docker compose --env-file .env.mgt-1 ps
+docker compose --env-file .env.mgt-1 logs --tail=100
 ```
 
 Use explicit image versions rather than `latest`.
 
 ## Backup
 
-Back up:
+Back up the host-specific `DATA_DIR`.
+
+For example:
 
 ```text
-~/personal-cloud-data/adguard/conf/
-~/personal-cloud-data/adguard/work/
+/home/damien/personal-cloud-data/adguard/conf/
+/home/damien/personal-cloud-data/adguard/work/
 ```
 
 The container is disposable. Persistent state is not.
+
+The `.env` file should also be recoverable, but it contains only host-specific deployment values.
 
 ## Failure Recovery
 
@@ -261,13 +393,13 @@ If tailnet DNS stops working:
 1. Check the container:
 
 ```bash
-docker compose ps
+docker compose --env-file .env.mgt-1 ps
 ```
 
 2. Check logs:
 
 ```bash
-docker compose logs --tail=100
+docker compose --env-file .env.mgt-1 logs --tail=100
 ```
 
 3. Test AdGuard directly:
@@ -282,8 +414,11 @@ dig @<TAILSCALE_IP> example.com
 
 ## Design Decisions
 
+* One Compose definition for all hosts.
+* Host-specific values supplied through env files.
+* `.env.example` committed; real env files ignored.
 * Tailscale-only initially to limit blast radius.
-* Encrypted upstream DNS to reduce ISP visibility.
+* Encrypted upstream DNS.
 * No Unbound.
 * Explicit Tailscale interface binding.
 * No public client-side DNS fallback.
@@ -299,3 +434,4 @@ Likely next steps:
 * local DNS rewrites
 * Uptime Kuma monitoring
 * controlled expansion to LAN clients
+

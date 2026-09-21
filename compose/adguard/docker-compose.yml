@@ -5,15 +5,11 @@ services:
     restart: unless-stopped
 
     ports:
-      - "53:53/tcp"
-      - "53:53/udp"
-
-      # Initial setup UI
-      - "3000:3000/tcp"
-
-      # Normal web UI after setup
-      - "8080:80/tcp"
+      - "${TAILSCALE_IP}:53:53/tcp"
+      - "${TAILSCALE_IP}:53:53/udp"
+      - "${TAILSCALE_IP}:3000:3000/tcp"
+      - "${TAILSCALE_IP}:8080:80/tcp"
 
     volumes:
-      - ~/personal-cloud-data/adguard/work:/opt/adguardhome/work
-      - ~/personal-cloud-data/adguard/conf:/opt/adguardhome/conf
+      - "${DATA_DIR}/work:/opt/adguardhome/work"
+      - "${DATA_DIR}/conf:/opt/adguardhome/conf"
