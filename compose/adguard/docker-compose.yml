@@ -1,0 +1,19 @@
+services:
+  adguard:
+    image: adguard/adguardhome:v0.107.79
+    container_name: adguard
+    restart: unless-stopped
+
+    ports:
+      - "53:53/tcp"
+      - "53:53/udp"
+
+      # Initial setup UI
+      - "3000:3000/tcp"
+
+      # Normal web UI after setup
+      - "8080:80/tcp"
+
+    volumes:
+      - ~/personal-cloud-data/adguard/work:/opt/adguardhome/work
+      - ~/personal-cloud-data/adguard/conf:/opt/adguardhome/conf
